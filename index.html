@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en" data-theme="slate">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="description" content="A projector-ready academy countdown, stopwatch, and digital clock.">
+  <title>Academy Time — Event Counter</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <main>
+    <section class="screen splash" id="splash" aria-labelledby="welcome-title">
+      <div class="splash-content">
+        <div class="logo-placeholder" aria-label="Academy logo">
+          <img src="logo.png" alt="Academy logo" onerror="this.hidden=true">
+        </div>
+        <p class="eyebrow">A better way to keep time</p>
+        <h1 id="welcome-title">Every moment<br>moves us forward.</h1>
+        <p class="splash-copy">Your academy's clear, focused event timer.</p>
+        <button class="primary-button" id="start-counter" type="button">Start counter</button>
+      </div>
+    </section>
+
+    <section class="screen main-screen" id="main-screen" aria-label="Academy event timer" aria-hidden="true" hidden>
+      <header class="topbar">
+        <div class="brand">
+          <div class="logo-placeholder logo-small" aria-label="Academy logo">
+            <img src="logo.png" alt="Academy logo" onerror="this.hidden=true">
+          </div>
+          <div class="brand-label">
+            <strong>ACADEMY TIME</strong>
+            <span>Make every second count</span>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button class="icon-button" id="theme-button" type="button" aria-label="Change color theme" title="Change color theme">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.64 5.64l1.42 1.42m9.88 9.88 1.42 1.42m0-12.72-1.42 1.42m-9.88 9.88-1.42 1.42"/><circle cx="12" cy="12" r="4"/></svg>
+            <span class="button-label">Theme</span>
+          </button>
+          <button class="icon-button" id="settings-button" type="button" aria-label="Open event settings">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.7a8 8 0 0 1-1.4.8l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.4-.8l-1.7.7-1.4-2.4 1.4-1.1a7 7 0 0 1 0-1.7l-1.4-1.1 1.4-2.4 1.7.7a8 8 0 0 1 1.4-.8l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.4.8l1.7-.7 1.4 2.4-1.4 1.1a7 7 0 0 1 0 1.6Z"/></svg>
+            <span class="button-label">Settings</span>
+          </button>
+          <button class="icon-button" id="fullscreen-button" type="button" aria-label="Enter fullscreen" title="Projector view">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H4v4m12-4h4v4M4 16v4h4m12-4v4h-4"/></svg>
+            <span class="button-label">Projector</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="counter-content">
+        <header class="event-heading">
+          <p class="eyebrow" id="mode-eyebrow">Countdown</p>
+          <h1 id="event-title">Welcome to School Event</h1>
+          <p id="event-subtitle">A moment worth counting down to.</p>
+        </header>
+        <nav class="mode-switch" aria-label="Timer mode">
+          <button class="mode-button" type="button" data-mode="countdown" aria-pressed="true">Countdown</button>
+          <button class="mode-button" type="button" data-mode="stopwatch" aria-pressed="false">Stopwatch</button>
+          <button class="mode-button" type="button" data-mode="clock" aria-pressed="false">Digital clock</button>
+        </nav>
+
+        <section class="timer-panel" id="countdown-panel" aria-label="Countdown timer">
+          <div class="digits" id="countdown-digits"></div>
+          <div class="controls">
+            <button class="control-button primary" id="countdown-toggle" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z"/></svg><span>Start</span>
+            </button>
+            <button class="control-button danger" id="countdown-reset" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.64-6.36L3 8"/><path d="M3 3v5h5"/></svg>Reset
+            </button>
+          </div>
+          <div class="timer-setup">
+            <fieldset class="duration-setup">
+              <legend>Custom countdown</legend>
+              <div class="duration-fields">
+                <label class="duration-field" for="duration-days">Days<input type="number" id="duration-days" min="0" max="999" step="1" value="0" inputmode="numeric"></label>
+                <label class="duration-field" for="duration-hours">Hours<input type="number" id="duration-hours" min="0" max="23" step="1" value="0" inputmode="numeric"></label>
+                <label class="duration-field" for="duration-minutes">Minutes<input type="number" id="duration-minutes" min="0" max="59" step="1" value="10" inputmode="numeric"></label>
+                <label class="duration-field" for="duration-seconds">Seconds<input type="number" id="duration-seconds" min="0" max="59" step="1" value="0" inputmode="numeric"></label>
+              </div>
+              <button class="control-button" id="set-duration" type="button">Set time</button>
+            </fieldset>
+            <label class="setting-field target-field" for="target-date">Or choose a target date and time
+              <input type="datetime-local" id="target-date">
+            </label>
+          </div>
+          <p class="status-line" id="countdown-status" role="status" aria-live="polite">Set a duration or target, then press Start.</p>
+        </section>
+
+        <section class="timer-panel hidden" id="stopwatch-panel" aria-label="Stopwatch">
+          <div class="digits stopwatch-digits" id="stopwatch-digits"></div>
+          <div class="controls">
+            <button class="control-button primary" id="stopwatch-toggle" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z"/></svg><span>Start</span>
+            </button>
+            <button class="control-button danger" id="stopwatch-reset" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.64-6.36L3 8"/><path d="M3 3v5h5"/></svg>Reset
+            </button>
+          </div>
+          <p class="status-line" id="stopwatch-status" role="status" aria-live="polite">Ready when you are.</p>
+        </section>
+
+        <section class="timer-panel hidden" id="clock-panel" aria-label="Local digital clock">
+          <div class="clock-display" id="clock-display">--:--<small>AM</small></div>
+          <p class="date-display" id="date-display"></p>
+          <div class="controls"><button class="control-button" id="clock-format" type="button">Switch to 24-hour</button></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <div class="marquee hidden" id="marquee" aria-label="Academy announcement">
+    <span class="marquee-label">NOTICE</span>
+    <div class="marquee-window"><div class="marquee-track" id="announcement-track"></div></div>
+  </div>
+
+  <div class="modal-backdrop" id="settings-modal" hidden>
+    <section class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <h2 id="settings-title">Event settings</h2>
+      <p>Personalize the display for your academy event.</p>
+      <div class="dialog-fields">
+        <label class="setting-field" for="title-input">Event title<input type="text" id="title-input" maxlength="80"></label>
+        <label class="setting-field" for="announcement-input">Live announcement<input type="text" id="announcement-input" maxlength="180" value="Admissions Open • Exam Schedule Announced • Welcome to our academy"></label>
+        <label class="setting-field" for="celebration-sound">Celebration sound
+          <select id="celebration-sound">
+            <option value="techno">Arcade Techno Beep</option>
+            <option value="8bit">Retro 8-Bit Gaming Jingle</option>
+            <option value="cinematic">Deep Cinematic Bass Drop</option>
+          </select>
+        </label>
+        <div class="intro-setting">
+          <div class="intro-setting-copy"><strong>Enable Student Intro Mode</strong><span>Speak the greeting and countdown before Start or Resume.</span></div>
+          <label class="toggle-switch" aria-label="Enable Student Intro Mode"><input type="checkbox" id="student-intro-toggle"><span aria-hidden="true"></span></label>
+        </div>
+        <label class="setting-field" for="student-name-input">Student Name<input type="text" id="student-name-input" maxlength="50" value="Student"></label>
+      </div>
+      <div class="dialog-actions">
+        <button class="control-button subtle" id="settings-cancel" type="button">Cancel</button>
+        <button class="control-button primary" id="settings-save" type="button">Save changes</button>
+      </div>
+    </section>
+  </div>
+
+  <section class="student-intro" id="student-intro" role="dialog" aria-modal="true" aria-labelledby="student-intro-heading" aria-hidden="true" hidden>
+    <div class="student-intro-content">
+      <p class="eyebrow">Your moment starts now</p>
+      <h2 id="student-intro-heading">Good Luck, <span id="intro-student-name">Student</span>!<br>Let's Go!</h2>
+      <div class="intro-count" id="intro-count" aria-live="assertive"></div>
+      <button class="control-button intro-cancel" id="intro-cancel" type="button">Cancel intro</button>
+    </div>
+  </section>
+
+  <canvas class="confetti-canvas" id="confetti-canvas" aria-hidden="true"></canvas>
+</body>
+</html>
