@@ -30,7 +30,7 @@
             <img src="school-logo.png.jpeg" alt="Quetta Residential School &amp; College logo">
           </div>
           <div class="brand-label">
-            <strong>QUETTA RESIDENTIAL SCHOOL &amp; COLLEGE</strong>
+            <strong>Quetta Residential School &amp; College</strong>
             <span>Make every second count</span>
           </div>
         </div>
@@ -51,9 +51,13 @@
       </header>
 
       <div class="counter-content">
+        <div class="competition-banner" aria-label="Inter School Speech Competition">
+          <span class="competition-banner-kicker">Proudly Presents:</span>
+          <span class="competition-banner-title">Inter School<br class="competition-mobile-break"> Speech Competition</span>
+        </div>
         <header class="event-heading">
           <p class="eyebrow" id="mode-eyebrow">Countdown</p>
-          <h1 id="event-title">Welcome to School Event</h1>
+          <h1 id="event-title">The Stage is Yours</h1>
           <p id="event-subtitle">A moment worth counting down to.</p>
         </header>
         <nav class="mode-switch" aria-label="Timer mode">
@@ -72,6 +76,10 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.64-6.36L3 8"/><path d="M3 3v5h5"/></svg>Reset
             </button>
           </div>
+          <section class="participant-queue-controls" aria-label="Participant queue" hidden>
+            <button class="control-button" type="button" data-participant-welcome>Welcome Next Student</button>
+            <p class="status-line participant-queue-status" role="status" aria-live="polite"></p>
+          </section>
           <div class="timer-setup">
             <fieldset class="duration-setup">
               <legend>Custom countdown</legend>
@@ -100,6 +108,19 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.64-6.36L3 8"/><path d="M3 3v5h5"/></svg>Reset
             </button>
           </div>
+          <section class="participant-queue-controls" aria-label="Participant queue" hidden>
+            <button class="control-button" type="button" data-participant-welcome>Welcome Next Student</button>
+            <p class="status-line participant-queue-status" role="status" aria-live="polite"></p>
+          </section>
+          <fieldset class="duration-setup stopwatch-setup">
+            <legend>Optional stopwatch time limit</legend>
+            <div class="duration-fields">
+              <label class="duration-field" for="stopwatch-limit-hours">Hours<input type="number" id="stopwatch-limit-hours" min="0" max="999" step="1" value="0" inputmode="numeric"></label>
+              <label class="duration-field" for="stopwatch-limit-minutes">Minutes<input type="number" id="stopwatch-limit-minutes" min="0" max="59" step="1" value="0" inputmode="numeric"></label>
+              <label class="duration-field" for="stopwatch-limit-seconds">Seconds<input type="number" id="stopwatch-limit-seconds" min="0" max="59" step="1" value="0" inputmode="numeric"></label>
+            </div>
+            <button class="control-button" id="set-stopwatch-limit" type="button">Set time limit</button>
+          </fieldset>
           <p class="status-line" id="stopwatch-status" role="status" aria-live="polite">Ready when you are.</p>
         </section>
 
@@ -132,10 +153,21 @@
           </select>
         </label>
         <div class="intro-setting">
-          <div class="intro-setting-copy"><strong>Enable Student Intro Mode</strong><span>Speak the greeting and countdown before Start or Resume.</span></div>
+          <div class="intro-setting-copy"><strong>Enable Student Intro Mode</strong><span>Use the Intro Name for its own greeting and countdown.</span></div>
           <label class="toggle-switch" aria-label="Enable Student Intro Mode"><input type="checkbox" id="student-intro-toggle"><span aria-hidden="true"></span></label>
         </div>
-        <label class="setting-field" for="student-name-input">Student Name<input type="text" id="student-name-input" maxlength="50" value="Student"></label>
+        <label class="setting-field" for="student-name-input">Intro Name
+          <input type="text" id="student-name-input" maxlength="50" value="Student">
+        </label>
+        <section class="participant-queue-setting" aria-label="Participant queue settings">
+          <div class="intro-setting">
+            <div class="intro-setting-copy"><strong>Enable Participant Queue</strong><span>Show a separate welcome button in Stopwatch mode. Welcoming never starts a timer.</span></div>
+            <label class="toggle-switch" aria-label="Enable Participant Queue"><input type="checkbox" id="participant-queue-toggle"><span aria-hidden="true"></span></label>
+          </div>
+          <label class="setting-field" for="participant-names-input">Participating Students (one name per line)
+            <textarea id="participant-names-input" rows="5" maxlength="1000" placeholder="Ali&#10;Sara&#10;Ahmed"></textarea>
+          </label>
+        </section>
       </div>
       <div class="dialog-actions">
         <button class="control-button subtle" id="settings-cancel" type="button">Cancel</button>
@@ -147,7 +179,7 @@
   <section class="student-intro" id="student-intro" role="dialog" aria-modal="true" aria-labelledby="student-intro-heading" aria-hidden="true" hidden>
     <div class="student-intro-content">
       <p class="eyebrow">Your moment starts now</p>
-      <h2 id="student-intro-heading">Good Luck, <span id="intro-student-name">Student</span>!<br>Let's Go!</h2>
+      <h2 id="student-intro-heading"><span id="intro-greeting">Good Luck,</span> <span id="intro-student-name">Student</span><span id="intro-closing">!</span><br><span id="intro-farewell">Let's Go!</span></h2>
       <div class="intro-count" id="intro-count" aria-live="assertive"></div>
       <button class="control-button intro-cancel" id="intro-cancel" type="button">Cancel intro</button>
     </div>

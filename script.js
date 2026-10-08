@@ -8,7 +8,9 @@
     countdownInterval: null,
     countdownRunning: false,
     countdownRemaining: 0,
+    countdownConfiguredDuration: 0,
     countdownEndAt: 0,
+    countdownLastTickSecond: null,
     countdownCompleted: false,
     countdownResetLocked: false,
     countdownPaused: false,
@@ -16,12 +18,18 @@
     stopwatchRunning: false,
     stopwatchElapsed: 0,
     stopwatchStartedAt: 0,
+    stopwatchLimit: 0,
+    stopwatchLastTickSecond: null,
+    stopwatchCompleted: false,
     clockInterval: null,
     clock24Hour: false,
     theme: "slate",
     celebrationSound: "techno",
     studentIntroEnabled: false,
+    participantQueueEnabled: false,
     studentName: "Student",
+    participantNames: [],
+    nextParticipantIndex: 0,
     pendingStartMode: null,
     introGeneration: 0,
     introTimeout: null,
@@ -38,10 +46,10 @@
   const themes = ["slate", "navy", "maroon"];
   const digitLayouts = {
     countdown: [
-      ["days", "Days"], ["hours", "Hours"], ["minutes", "Minutes"], ["seconds", "Seconds"]
+      ["hours", "Hours"], ["minutes", "Minutes"], ["seconds", "Seconds"]
     ],
     stopwatch: [
-      ["stopwatch-minutes", "Minutes"], ["stopwatch-seconds", "Seconds"], ["stopwatch-millis", "Milliseconds"]
+      ["stopwatch-hours", "Hours"], ["stopwatch-minutes", "Minutes"], ["stopwatch-seconds", "Seconds"]
     ]
   };
 
@@ -57,7 +65,7 @@
         const separator = document.createElement("span");
         separator.className = "separator";
         separator.setAttribute("aria-hidden", "true");
-        separator.textContent = index === layout.length - 1 && id === "stopwatch-millis" ? "." : ":";
+        separator.textContent = ":";
         container.append(separator);
       }
       const unit = document.createElement("div");
@@ -67,7 +75,7 @@
       const digit = document.createElement("span");
       digit.className = "digit";
       digit.id = id;
-      digit.textContent = id === "stopwatch-millis" ? "000" : "00";
+      digit.textContent = "00";
       const unitLabel = document.createElement("span");
       unitLabel.className = "unit-label";
       unitLabel.textContent = label;
@@ -100,10 +108,19 @@
     return (((values[0] * 24 + values[1]) * 60 + values[2]) * 60 + values[3]) * 1000;
   }
 
+  function readStopwatchLimit() {
+    const fields = [
+      $("#stopwatch-limit-hours"), $("#stopwatch-limit-minutes"), $("#stopwatch-limit-seconds")
+    ];
+    const values = fields.map((field) => field.valueAsNumber);
+    const limits = [999, 59, 59];
+    if (values.some((value, index) => !Number.isInteger(value) || value < 0 || value > limits[index])) return NaN;
+    return ((values[0] * 60 + values[1]) * 60 + values[2]) * 1000;
+  }
+
   function writeCountdown(milliseconds) {
     const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
-    $("#days").textContent = pad(Math.floor(totalSeconds / 86400));
-    $("#hours").textContent = pad(Math.floor(totalSeconds / 3600) % 24);
+    $("#hours").textContent = pad(Math.floor(totalSeconds / 3600));
     $("#minutes").textContent = pad(Math.floor(totalSeconds / 60) % 60);
     $("#seconds").textContent = pad(totalSeconds % 60);
   }
@@ -118,7 +135,9 @@
 
   function setStopwatchButton(running) {
     const button = $("#stopwatch-toggle");
-    button.querySelector("span").textContent = running ? "Pause" : (state.stopwatchElapsed > 0 ? "Resume" : "Start");
+    button.querySelector("span").textContent = running ? "Pause" : (
+      state.stopwatchCompleted ? "Start again" : state.stopwatchElapsed > 0 ? "Resume" : "Start"
+    );
     button.querySelector("svg").innerHTML = running
       ? '<path d="M7 5h4v14H7zm6 0h4v14h-4z"/>'
       : '<path d="m8 5 11 7-11 7z"/>';
@@ -129,12 +148,23 @@
     element.classList.toggle("complete", complete);
   }
 
+  function setParticipantQueueStatus(message, complete = false) {
+    document.querySelectorAll(".participant-queue-status")
+      .forEach((element) => setStatus(element, message, complete));
+  }
+
+  function setParticipantQueueVisible(visible) {
+    document.querySelectorAll(".participant-queue-controls")
+      .forEach((panel) => { panel.hidden = !visible; });
+  }
+
   function applySelectedCountdown() {
     const selected = state.countdownSource === "target"
       ? readTarget() - Date.now()
       : readDuration();
     if (!Number.isFinite(selected) || selected <= 0) return false;
     state.countdownRemaining = selected;
+    state.countdownConfiguredDuration = selected;
     state.countdownResetLocked = false;
     state.countdownCompleted = false;
     state.countdownPaused = false;
@@ -170,6 +200,11 @@
   function tickCountdown() {
     state.countdownRemaining = Math.max(0, state.countdownEndAt - Date.now());
     writeCountdown(state.countdownRemaining);
+    const secondsRemaining = Math.ceil(state.countdownRemaining / 1000);
+    if (secondsRemaining >= 1 && secondsRemaining <= 3 && secondsRemaining !== state.countdownLastTickSecond) {
+      state.countdownLastTickSecond = secondsRemaining;
+      playFinalSecondsTick();
+    }
     if (state.countdownRemaining <= 0) completeCountdown();
   }
 
@@ -180,7 +215,10 @@
       return;
     }
 
-    if (state.countdownSource === "target" && !state.countdownPaused && !state.countdownCompleted && !state.countdownResetLocked) {
+    if (state.countdownCompleted && state.countdownConfiguredDuration > 0) {
+      state.countdownSource = "duration";
+      state.countdownRemaining = state.countdownConfiguredDuration;
+    } else if (state.countdownSource === "target" && !state.countdownPaused && !state.countdownCompleted && !state.countdownResetLocked) {
       state.countdownRemaining = Math.max(0, readTarget() - Date.now());
     } else if (state.countdownRemaining <= 0 || state.countdownCompleted || state.countdownResetLocked) {
       if (!applySelectedCountdown()) {
@@ -199,6 +237,9 @@
       return;
     }
     prepareAudio();
+    if (!state.countdownPaused) state.countdownConfiguredDuration = state.countdownRemaining;
+    state.countdownLastTickSecond = null;
+    playTimerStartSound();
     state.countdownEndAt = Date.now() + state.countdownRemaining;
     state.countdownRunning = true;
     state.countdownPaused = false;
@@ -208,23 +249,54 @@
     tickCountdown();
   }
 
-  function renderStopwatch() {
-    const elapsed = state.stopwatchElapsed + (state.stopwatchRunning ? performance.now() - state.stopwatchStartedAt : 0);
+  function renderStopwatch(elapsed = state.stopwatchElapsed + (state.stopwatchRunning ? performance.now() - state.stopwatchStartedAt : 0)) {
     const milliseconds = Math.floor(elapsed);
+    $("#stopwatch-hours").textContent = pad(Math.floor(milliseconds / 3600000));
     $("#stopwatch-minutes").textContent = pad(Math.floor(milliseconds / 60000));
     $("#stopwatch-seconds").textContent = pad(Math.floor(milliseconds / 1000) % 60);
-    $("#stopwatch-millis").textContent = pad(milliseconds % 1000, 3);
+  }
+
+  function tickStopwatch() {
+    const elapsed = state.stopwatchElapsed + performance.now() - state.stopwatchStartedAt;
+    if (state.stopwatchLimit > 0) {
+      const remaining = Math.max(0, state.stopwatchLimit - elapsed);
+      const secondsRemaining = Math.ceil(remaining / 1000);
+      if (secondsRemaining >= 1 && secondsRemaining <= 3 && secondsRemaining !== state.stopwatchLastTickSecond) {
+        state.stopwatchLastTickSecond = secondsRemaining;
+        playFinalSecondsTick();
+      }
+      if (remaining <= 0) {
+        state.stopwatchElapsed = state.stopwatchLimit;
+        renderStopwatch(state.stopwatchElapsed);
+        state.stopwatchRunning = false;
+        state.stopwatchCompleted = true;
+        clearInterval(state.stopwatchInterval);
+        state.stopwatchInterval = null;
+        setStopwatchButton(false);
+        setStatus($("#stopwatch-status"), "Time limit reached.", true);
+        celebrateNow();
+        return;
+      }
+    }
+    renderStopwatch(elapsed);
   }
 
   function startStopwatch() {
     if (state.stopwatchRunning) return;
+    if (state.stopwatchCompleted) {
+      state.stopwatchElapsed = 0;
+      state.stopwatchCompleted = false;
+      renderStopwatch();
+    }
     prepareAudio();
+    state.stopwatchLastTickSecond = null;
+    playTimerStartSound();
     state.stopwatchRunning = true;
     state.stopwatchStartedAt = performance.now();
-    state.stopwatchInterval = window.setInterval(renderStopwatch, 10);
+    state.stopwatchInterval = window.setInterval(tickStopwatch, 10);
     setStopwatchButton(true);
     setStatus($("#stopwatch-status"), "Stopwatch running.");
-    renderStopwatch();
+    tickStopwatch();
   }
 
   function pauseStopwatch() {
@@ -266,6 +338,8 @@
     state.introTimeout = null;
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     state.pendingStartMode = null;
+    document.querySelectorAll("[data-participant-welcome]")
+      .forEach((button) => { button.disabled = false; });
     const overlay = $("#student-intro");
     overlay.classList.remove("active");
     overlay.classList.add("leaving");
@@ -287,15 +361,23 @@
     state.stopwatchInterval = null;
     state.countdownRunning = false;
     state.countdownRemaining = 0;
+    state.countdownConfiguredDuration = 0;
     state.countdownEndAt = 0;
     state.countdownCompleted = false;
     state.countdownPaused = false;
+    state.nextParticipantIndex = 0;
     state.countdownResetLocked = true;
     state.countdownSource = "duration";
     state.stopwatchRunning = false;
     state.stopwatchElapsed = 0;
     state.stopwatchStartedAt = 0;
+    state.stopwatchLimit = 0;
+    state.stopwatchLastTickSecond = null;
+    state.stopwatchCompleted = false;
     ["#duration-days", "#duration-hours", "#duration-minutes", "#duration-seconds"].forEach((selector) => {
+      $(selector).value = "0";
+    });
+    ["#stopwatch-limit-hours", "#stopwatch-limit-minutes", "#stopwatch-limit-seconds"].forEach((selector) => {
       $(selector).value = "0";
     });
     $("#target-date").value = "";
@@ -365,8 +447,12 @@
     const generation = ++state.introGeneration;
     const overlay = $("#student-intro");
     const studentName = state.studentName.trim() || "Student";
+    $("#intro-greeting").textContent = "Good Luck,";
     $("#intro-student-name").textContent = studentName;
+    $("#intro-closing").textContent = "!";
+    $("#intro-farewell").textContent = "Let's Go!";
     $("#intro-count").textContent = "";
+    $("#intro-count").hidden = false;
     $("#intro-count").classList.remove("counting");
     overlay.hidden = false;
     overlay.classList.remove("leaving");
@@ -375,7 +461,11 @@
 
     prepareAudio();
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-    await speak(`Good Luck, ${studentName}! Let's Go!`, { fallbackWord: "Go", rate: .94 });
+    if (state.studentIntroEnabled) {
+      await speak(`Good luck, ${studentName}!`, { fallbackWord: "Go", rate: .94 });
+      if (generation !== state.introGeneration) return;
+    }
+    await speak("Let's go!", { fallbackWord: "Go", rate: .94 });
     if (generation !== state.introGeneration) return;
 
     const showCount = (label) => {
@@ -408,6 +498,58 @@
     return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
   }
 
+  async function welcomeNextParticipant() {
+    if (state.pendingStartMode || !state.participantQueueEnabled) return;
+    if (state.participantNames.length === 0) {
+      setParticipantQueueStatus("Add participant names in Settings first.");
+      return;
+    }
+    state.pendingStartMode = "participant-welcome";
+    const generation = ++state.introGeneration;
+    const overlay = $("#student-intro");
+    const participantName = state.participantNames[state.nextParticipantIndex % state.participantNames.length];
+    const welcomeButtons = document.querySelectorAll("[data-participant-welcome]");
+    welcomeButtons.forEach((button) => { button.disabled = true; });
+    setParticipantQueueStatus(`Welcoming ${participantName}…`);
+    $("#intro-greeting").textContent = "Please Welcome,";
+    $("#intro-student-name").textContent = participantName;
+    $("#intro-closing").textContent = "";
+    $("#intro-farewell").textContent = "";
+    $("#intro-count").textContent = "";
+    $("#intro-count").hidden = true;
+    $("#intro-count").classList.remove("counting");
+    overlay.hidden = false;
+    overlay.classList.remove("leaving");
+    overlay.setAttribute("aria-hidden", "false");
+    requestAnimationFrame(() => overlay.classList.add("active"));
+
+    prepareAudio();
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    try {
+      await speak(`Please welcome, ${participantName}!`, { fallbackWord: "Go", rate: .94 });
+      if (generation !== state.introGeneration) return;
+
+      state.nextParticipantIndex = (state.nextParticipantIndex + 1) % state.participantNames.length;
+      const nextName = state.participantNames[state.nextParticipantIndex];
+      setParticipantQueueStatus(`Welcomed ${participantName}. Next: ${nextName}.`, true);
+      await delay(700);
+      if (generation !== state.introGeneration) return;
+      overlay.classList.remove("active");
+      overlay.classList.add("leaving");
+      overlay.setAttribute("aria-hidden", "true");
+      overlay.hidden = true;
+      overlay.classList.remove("leaving");
+    } catch (error) {
+      console.error("Unable to welcome the next participant:", error);
+      setParticipantQueueStatus("Unable to welcome this participant. Please try again.");
+    } finally {
+      if (generation === state.introGeneration) {
+        state.pendingStartMode = null;
+        welcomeButtons.forEach((button) => { button.disabled = false; });
+      }
+    }
+  }
+
   function startSelectedTimer(mode) {
     stopOtherTimer(mode);
     if (mode === "countdown") startCountdown();
@@ -416,6 +558,10 @@
 
   function triggerMainProcess(mode) {
     if (state.pendingStartMode) return;
+    if (mode === "countdown" && state.countdownPaused) {
+      startSelectedTimer(mode);
+      return;
+    }
     if (state.studentIntroEnabled) runStudentIntro(mode);
     else startSelectedTimer(mode);
   }
@@ -457,6 +603,44 @@
       }
     } catch (error) {
       console.error("Unable to prepare audio:", error);
+    }
+  }
+
+  function playTimerStartSound() {
+    try {
+      const context = state.audioContext;
+      if (!context) throw new Error("Audio could not be initialized.");
+      const play = () => {
+        const now = context.currentTime + .02;
+        scheduleTone(context, 660, now, .12, { type: "triangle", volume: .32 });
+        scheduleTone(context, 880, now + .14, .18, { type: "triangle", volume: .32 });
+      };
+      if (context.state === "suspended") {
+        context.resume().then(play).catch((error) => console.error("Unable to play timer start sound:", error));
+      } else {
+        play();
+      }
+    } catch (error) {
+      console.error("Unable to play timer start sound:", error);
+    }
+  }
+
+  function playFinalSecondsTick() {
+    try {
+      const context = state.audioContext;
+      if (!context) throw new Error("Audio could not be initialized.");
+      const play = () => {
+        const now = context.currentTime + .015;
+        scheduleTone(context, 920, now, .055, { type: "square", volume: .2 });
+        scheduleTone(context, 760, now + .075, .055, { type: "square", volume: .2 });
+      };
+      if (context.state === "suspended") {
+        context.resume().then(play).catch((error) => console.error("Unable to play final-seconds tick:", error));
+      } else {
+        play();
+      }
+    } catch (error) {
+      console.error("Unable to play final-seconds tick:", error);
     }
   }
 
@@ -620,7 +804,13 @@
     $("#announcement-input").value = $("#announcement-track").firstElementChild.textContent.trim().replace(/\s*•\s*$/, "");
     $("#celebration-sound").value = state.celebrationSound;
     $("#student-intro-toggle").checked = state.studentIntroEnabled;
+    $("#participant-queue-toggle").checked = state.participantQueueEnabled;
+    setParticipantQueueVisible(state.participantQueueEnabled);
     $("#student-name-input").value = state.studentName;
+    $("#participant-names-input").value = state.participantNames.join("\n");
+    if (state.participantNames.length === 0 && state.participantQueueEnabled) {
+      setParticipantQueueStatus("Add participant names in Settings first.");
+    }
     $("#settings-modal").hidden = false;
     $("#title-input").focus();
   }
@@ -637,7 +827,18 @@
     if (announcement) setAnnouncement(announcement);
     state.celebrationSound = $("#celebration-sound").value;
     state.studentIntroEnabled = $("#student-intro-toggle").checked;
+    state.participantQueueEnabled = $("#participant-queue-toggle").checked;
     state.studentName = $("#student-name-input").value.trim() || "Student";
+    state.participantNames = $("#participant-names-input").value
+      .split(/\r?\n/)
+      .map((name) => name.trim())
+      .filter(Boolean);
+    setParticipantQueueVisible(state.participantQueueEnabled);
+    if (state.participantNames.length > 0) state.nextParticipantIndex %= state.participantNames.length;
+    else state.nextParticipantIndex = 0;
+    setParticipantQueueStatus(state.participantNames.length > 0
+      ? `Next: ${state.participantNames[state.nextParticipantIndex]}.`
+      : "Add participant names in Settings first.");
     closeSettings();
   }
 
@@ -687,6 +888,29 @@
     });
     $("#countdown-reset").addEventListener("click", resetAllTimers);
     $("#stopwatch-reset").addEventListener("click", resetAllTimers);
+    document.querySelectorAll("[data-participant-welcome]")
+      .forEach((button) => button.addEventListener("click", welcomeNextParticipant));
+    $("#set-stopwatch-limit").addEventListener("click", () => {
+      const limit = readStopwatchLimit();
+      if (!Number.isFinite(limit)) {
+        setStatus($("#stopwatch-status"), "Enter a valid time limit.");
+        return;
+      }
+      cancelIntro();
+      clearInterval(state.stopwatchInterval);
+      state.stopwatchInterval = null;
+      state.stopwatchRunning = false;
+      state.stopwatchElapsed = 0;
+      state.stopwatchStartedAt = 0;
+      state.stopwatchLimit = limit;
+      state.stopwatchLastTickSecond = null;
+      state.stopwatchCompleted = false;
+      renderStopwatch();
+      setStopwatchButton(false);
+      setStatus($("#stopwatch-status"), limit > 0
+        ? "Time limit set. Start the stopwatch when ready."
+        : "No time limit. Stopwatch will run until paused or reset.");
+    });
     $("#set-duration").addEventListener("click", () => {
       const duration = readDuration();
       if (!Number.isFinite(duration) || duration <= 0) {
@@ -699,6 +923,7 @@
       state.countdownRunning = false;
       state.countdownSource = "duration";
       state.countdownRemaining = duration;
+      state.countdownConfiguredDuration = duration;
       state.countdownResetLocked = false;
       state.countdownCompleted = false;
       state.countdownPaused = false;
@@ -713,6 +938,7 @@
       state.countdownRunning = false;
       state.countdownSource = "target";
       state.countdownRemaining = Math.max(0, readTarget() - Date.now()) || 0;
+      state.countdownConfiguredDuration = 0;
       state.countdownResetLocked = false;
       state.countdownCompleted = false;
       state.countdownPaused = false;
